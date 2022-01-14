@@ -6,7 +6,7 @@ npm install
 ```
 
 ```
-DEBUG=myapp:* npm start
+npm start
 ```
 
 
