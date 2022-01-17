@@ -1,11 +1,11 @@
 let mysql = require('mysql');//引入mysql模块
-var databaseConfig = require('../../config/db');  //引入数据库配置模块中的数据
+var config = require('../../config/' + process.env.env_config + '.js');  //引入数据库配置模块中的数据
 
 //向外暴露方法
 module.exports = {
     query : function(sql,params,callback){
         //每次使用的时候需要创建链接，数据操作完成之后要关闭连接
-        var connection = mysql.createConnection(databaseConfig);        
+        var connection = mysql.createConnection(config.db);        
         connection.connect(function(err){
             if(err){
                 console.log('数据库链接失败');

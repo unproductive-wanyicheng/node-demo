@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var db=require('../dao/query.js');
+var db = require('../dao/query.js');
 
 /* GET api listing. */
 router.get('/users', function(req, res, next) {
