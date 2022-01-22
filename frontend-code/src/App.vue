@@ -6,10 +6,11 @@
 </template>
 <script>
 import axios from 'axios';
+import {host} from './http/server.host';
 export default {
     name: 'App',
     mounted() {
-        axios.get('http://localhost:3000/api/users').then(res => {
+        axios.get(host + '/api/users').then(res => {
             console.log(res);
         })
     }
