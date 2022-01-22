@@ -10,9 +10,9 @@ import {host} from './http/server.host';
 export default {
     name: 'App',
     mounted() {
-        axios.get(host + '/api/users').then(res => {
-            console.log(res);
-        })
+        // axios.get(host + '/api/users').then(res => {
+        //     console.log(res);
+        // })
     }
 }
 </script>
