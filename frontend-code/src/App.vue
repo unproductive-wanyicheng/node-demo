@@ -1,14 +1,20 @@
 <template>
     <div>
-        <h1>hello vue demo</h1>
-        <h2>小喻喻前端开发工程师</h2>
+        <router-view></router-view>
     </div>
 </template>
 <script>
 import axios from 'axios';
 import {host} from './http/server.host';
+
 export default {
     name: 'App',
+    data() {
+        return {
+            userInfo: null,
+            users: []
+        }
+    },
     mounted() {
         // axios.get(host + '/api/users').then(res => {
         //     console.log(res);
@@ -16,3 +22,10 @@ export default {
     }
 }
 </script>
+
+<style>
+html,body {
+    margin: 0;
+    padding: 0;
+}
+</style>
