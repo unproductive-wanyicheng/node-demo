@@ -41,14 +41,17 @@ export default {
         // })
 
         this.msgs = this.reStoreChatHistory();
-
         this.scrollToBottom();
 
+        let myName = this.$route.query.userName;
+        let preUserInfo = this.reStoreUserInfo();
+        if (preUserInfo) {
+            this.userInfo = {...preUserInfo, userName: myName};
+            this.storeUserInfo(this.userInfo);
+        }
+
+
         if (!this.socket) {
-            let myName = this.$route.query.userName;
-            let preUserInfo = localStorage.getItem('preUserInfo');
-
-
             const socket = io.connect(host);
             // 上下文vue实例
             socket.ctx = this;
@@ -58,19 +61,10 @@ export default {
                 console.log('user connected ', user)
                 let ctx = socket.ctx;
 
-                if (preUserInfo) {
-                    preUserInfo = JSON.parse(preUserInfo);
-                    ctx.userInfo = preUserInfo;
-                    socket.emit('join group', preUserInfo);
-                } else {
-                    let temUserInfo = {
-                        userName: myName,
-                        userId: user.userId
-                    }
-                    ctx.userInfo = temUserInfo;
-                    localStorage.setItem('preUserInfo', JSON.stringify(temUserInfo));
-                    socket.emit('join group', temUserInfo);
-                }
+                let temUserInfo = {...user, ...(preUserInfo || {}), ...(this.userInfo || {}), userName: myName};
+                ctx.userInfo = temUserInfo;
+                socket.emit('join group', temUserInfo);
+                ctx.storeUserInfo(temUserInfo);
             })
 
             socket.on('join group', user => {
@@ -103,9 +97,15 @@ export default {
                 ctx.users = users;
             })
         } else {
+            let nowUser = this.userInfo || this.$store.state.socket.ctx.userInfo;
             this.$store.state.socket.ctx = this;
-            this.userInfo = this.userInfo || this.$store.state.socket.ctx.userInfo;
-            this.socket.emit('fetch group');
+            this.userInfo = {...nowUser, userName: myName};
+            this.socket.emit('join group', this.userInfo);
+            this.socket.on('join group', user => {
+                let ctx = this.socket.ctx;
+                ctx.socket.emit('fetch group');
+            })
+            
         }
         
     },
@@ -131,6 +131,12 @@ export default {
         reStoreChatHistory() {
             return JSON.parse(window.localStorage.getItem('chat_history') || '[]');
         },
+        reStoreUserInfo() {
+            return JSON.parse(window.localStorage.getItem('preUserInfo') || 'null');
+        },
+        storeUserInfo(userInfo) {
+            return window.localStorage.setItem('preUserInfo', JSON.stringify(userInfo));
+        },
         enterHandler(e) {
             let msg = this.inputMsg;
             msg = msg.replace('\n', '').replace('\r', '').trim();
@@ -150,7 +156,16 @@ export default {
 }
 </script>
 
+<style>
+body {
+    overflow: hidden;
+}
+</style>
+
 <style scoped>
+
+
+
 .chat-wrapper {
     width: 100vw;
     height: 100vh;
