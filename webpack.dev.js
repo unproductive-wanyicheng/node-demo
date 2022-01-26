@@ -10,6 +10,7 @@ module.exports = merge(common, {
 			directory: path.join(__dirname, '/frontend-code/public'),
 		},
 		compress: true,
+		historyApiFallback: true,
 		port: 8080,
 	},
 });
