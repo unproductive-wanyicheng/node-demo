@@ -7,37 +7,52 @@ module.exports = {
 
         let uid = userCount++;
 
-        let newUser = {
+        let tmpUserInfo = {
             userName: `user_${uid}`,
             userId: uid,
         };
-        users.push({...newUser, socket});
 
-        socket.emit('connect message',newUser)
+        socket.emit('connect message', tmpUserInfo)
 
-        io.emit('join group', users.map(user => {
-            return {
-                userName: user.userName,
-                userId: user.userId
+        socket.on('join group', (userInfo) => {
+            let preUserIndex = users.findIndex(u => u.userId === userInfo.userId);
+            if (preUserIndex > -1) {
+                let preUser = users[preUserIndex];
+                io.emit('left group', {
+                    userName: preUser.userName,
+                    userId: preUser.userId
+                });
+                users.splice(preUserIndex, 1);
             }
-        }));
+            users.push({...userInfo, socket});
+            socket.user = userInfo;
+            io.emit('join group', userInfo);
+        })
 
         socket.on('disconnect', () => {
             console.log('user disconnected');
+            let user = socket.user;
+            if (user) {
+                let index = users.findIndex(e => e.userId === user.userId);
+                if (index > -1) {
+                    users.splice(index, 1);
+                }
 
-            let index = users.findIndex(e => e.userId === uid);
-            users.splice(index, 1);
-
-            users.forEach(u => {
-                let s = u.socket;
-                s.emit('disconnect message', newUser)
-            })
+                io.emit('left group', user);
+            }
         });
 
         socket.on('chat message', (msg) => {
             io.emit('chat message', msg);
         }); 
 
-
+        socket.on('fetch group', () => {
+            socket.emit('fetch group', users.map(u => {
+                return {
+                    userName: u.userName,
+                    userId: u.userId,
+                }
+            }));
+        }); 
     }
 }
