@@ -1,15 +1,16 @@
 <template>
     <div class="chat-wrapper">
         <div class="chat">
-            <div class="chat-list">
+            <div class="chat-list" ref="chatBox">
                 <p v-for="(msg, index) of msgs" :key="index">{{msg | msgTransform}}</p>
             </div>
             <div class="user-list">
-                <div v-for="user of users" :key="user.userId">{{user.userName}}</div>
+                <div class="user-item" v-for="user of users" :key="user.userId">{{user.userName}}</div>
             </div>
         </div>
-        <div class="send-chat" contenteditable="true" ref="inputBox" @keyup.enter="enterHandler">
-            
+        <div class="send-chat">
+            <input class="chat-input" type="text" v-model="inputMsg">
+            <span class="send-btn" @click="enterHandler">发送</span>
         </div>
     </div>
 </template>
@@ -30,7 +31,6 @@ export default {
         return {
             userInfo: null,
             users: [],
-            socket: null,
             msgs: [],
             inputMsg: ''
         }
@@ -40,41 +40,110 @@ export default {
         //     console.log(res);
         // })
 
-        const socket = io.connect(host);
-        this.socket = socket;
+        this.msgs = this.reStoreChatHistory();
 
-        socket.on('connect message', data => {
-            console.log(data)
-            this.userInfo = data; 
-        })
+        this.scrollToBottom();
 
-        socket.on('join group', users => {
-            this.users = users;
-        })
+        if (!this.socket) {
+            let myName = this.$route.query.userName;
+            let preUserInfo = localStorage.getItem('preUserInfo');
 
-        socket.on('disconnect message', user => {
-            console.log(user)
-            let index = this.users.findIndex(e => e.userId === user.userId);
-            this.users.splice(index, 1);
-        })
-        
-        socket.on('chat message', msg => {
-            console.log(msg)
-            this.msgs.push(msg);
-        })
+
+            const socket = io.connect(host);
+            // 上下文vue实例
+            socket.ctx = this;
+            this.$store.commit('setSocket', socket)
+
+            socket.on('connect message', user => {
+                console.log('user connected ', user)
+                let ctx = socket.ctx;
+
+                if (preUserInfo) {
+                    preUserInfo = JSON.parse(preUserInfo);
+                    ctx.userInfo = preUserInfo;
+                    socket.emit('join group', preUserInfo);
+                } else {
+                    let temUserInfo = {
+                        userName: myName,
+                        userId: user.userId
+                    }
+                    ctx.userInfo = temUserInfo;
+                    localStorage.setItem('preUserInfo', JSON.stringify(temUserInfo));
+                    socket.emit('join group', temUserInfo);
+                }
+            })
+
+            socket.on('join group', user => {
+                let ctx = socket.ctx;
+                ctx.users.push(user);
+
+                socket.emit('fetch group');
+            })
+
+            socket.on('left group', user => {
+                console.log(user)
+                let ctx = socket.ctx;
+                let index = ctx.users.findIndex(e => e.userId === user.userId);
+                ctx.users.splice(index, 1);
+            })
+            
+            socket.on('chat message', msg => {
+                console.log(msg)
+                let ctx = socket.ctx;
+                ctx.msgs.push(msg);
+
+                ctx.scrollToBottom();
+
+                ctx.storeChatHistory();
+            })
+
+            socket.on('fetch group', users => {
+                console.log(users)
+                let ctx = socket.ctx;
+                ctx.users = users;
+            })
+        } else {
+            this.$store.state.socket.ctx = this;
+            this.userInfo = this.userInfo || this.$store.state.socket.ctx.userInfo;
+            this.socket.emit('fetch group');
+        }
         
     },
+    beforeDestroy() {
+        this.storeChatHistory();
+    },
+    computed: {
+        socket() {
+            return this.$store.state.socket;
+        }
+    },
     methods: {
+        scrollToBottom() {
+            this.$nextTick(() => {
+                this.$refs.chatBox.scrollTop = this.$refs.chatBox.scrollHeight;
+            })
+        },
+        storeChatHistory() {
+            setTimeout(() => {
+                window.localStorage.setItem('chat_history', JSON.stringify(this.msgs));
+            }, 500);
+        },
+        reStoreChatHistory() {
+            return JSON.parse(window.localStorage.getItem('chat_history') || '[]');
+        },
         enterHandler(e) {
-            let msg = this.$refs.inputBox.innerText;
+            let msg = this.inputMsg;
+            msg = msg.replace('\n', '').replace('\r', '').trim();
             if (msg) {
-                msg = msg.replace('\n', '').replace('\r', '').trim();
                 this.socket.emit('chat message', {
                     userId: this.userInfo.userId,
                     userName: this.userInfo.userName,
                     msg: msg,
                 })
-                this.$refs.inputBox.innerText = '';
+
+                this.inputMsg = '';
+
+                this.storeChatHistory();
             }
         }
     }
@@ -83,7 +152,7 @@ export default {
 
 <style scoped>
 .chat-wrapper {
-    width: 100wh;
+    width: 100vw;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -92,6 +161,7 @@ export default {
 .chat {
     flex: auto;
     display: flex;
+    max-height: calc(100% - 60px);
 }
 
 .chat-list {
@@ -102,12 +172,38 @@ export default {
 }
 
 .user-list {
-    flex-basis: 20%;
+    max-width: 24%;
+    flex-basis: 24%;
+    flex-grow: 0;
     background-color:lightgrey;
 }
 
+.user-item {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 .send-chat {
-    flex-basis: 200px;
-    background-color: aquamarine;
+    flex-basis: 60px;
+    display: flex;
+    align-items: center;
+}
+
+.chat-input {
+    height: 100%;
+    border: none;
+    flex: auto;
+    outline: none;
+}
+
+.send-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 4px;
+    background-color: darkgreen;
+    text-align: center;
+    line-height: 60px;
+    color: white;
 }
 </style>
