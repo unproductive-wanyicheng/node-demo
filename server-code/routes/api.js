@@ -3,9 +3,13 @@ var router = express.Router();
 var db = require('../dao/query.js');
 let jwt = require('jwt-simple');
 let secret = 'wanyicheng520yupengtao';
+var codeMap = require('../err-code/index.js');
+
+let genTime = () => {
+	return (new Date()).getTime() + 30 * 24 * 60 * 60 * 1000;
+}
 
 router.use(function (req, res, next) {
-	console.log('%s %s %s', req.method, req.url, req.path);
 	// 对于 api 路径下 需要鉴权 除了 登录 和 注册 之外的接口
 	let reg1 = /\/register/gi;
 	let reg2 = /\/login/gi;
@@ -18,7 +22,6 @@ router.use(function (req, res, next) {
     if(token){
         try{
             let r = jwt.decode(token,secret);
-			console.log(r)
             if (r.expiresIn < (new Date()).getTime()) {
 				res.send({
 					code: 3,
@@ -62,17 +65,46 @@ router.get('/users', function (req, res, next) {
 	
 });
 
+router.get('/userinfo', function (req, res, next) {
+	let id = req.query.id;
+	if (!id) {
+		res.send({
+			status: 'failed',
+			code: 5,
+			reason: codeMap['5']
+		})
+		return;
+	}
+	db.query('select * from t_user as u where u.id = ?', [id], function (err, result, fields) {
+		if (err) {
+			res.send({
+				status: 'failed',
+				reason: `${err}`
+			})
+			return;
+		}
+		res.send({
+			username: result[0].username,
+			id: result[0].id,
+			wx_id: result[0].wx_id,
+			avatar: result[0].avatar,
+		});
+	});
+	
+});
+
 router.post('/register', function (req, res, next) {
-	let {username, password} = req.body;
-	if (!username || !password) {
+	let {username, password, wx_id} = req.body;
+	if (!username || !password || !wx_id) {
 		res.send({
 			status: 'failed',
 			code: 2,
-			reason: '用户名 密码 不得为空'
+			reason: '用户名 密码 微信号 不得为空'
 		})
+		return;
 	}
 	// 先查这个用户存在与否
-	db.query('select username from t_user as u where u.username = ?', [username], function (err, result, fields) {
+	db.query('select wx_id from t_user as u where u.wx_id = ?', [wx_id], function (err, result, fields) {
 		if (err) {
 			res.send({
 				status: 'failed',
@@ -84,12 +116,12 @@ router.post('/register', function (req, res, next) {
 			res.send({
 				status: 'failed',
 				code: 1,
-				reason: `用户名 ${username} 已存在`
+				reason: `用户 ${wx_id} 已存在`
 			})
 			return;
 		}
 		// 插入这条新数据
-		db.query('insert into t_user (username, password) values (?, ?)', [username, password], function (err, uResult, fields) {
+		db.query('insert into t_user (username, password, wx_id) values (?, ?, ?)', [username, password, wx_id], function (err, uResult, fields) {
 			if (err) {
 				res.send({
 					status: 'failed',
@@ -100,7 +132,7 @@ router.post('/register', function (req, res, next) {
 			if (uResult) {
 				let tokenData = {
 					username,
-					expiresIn: (new Date()).getTime() + 2 * 24 * 60 * 60 * 1000
+					expiresIn: genTime()
 				}
 				let token =  jwt.encode(tokenData, secret);
 				res.send({
@@ -109,6 +141,8 @@ router.post('/register', function (req, res, next) {
 					data: {
 						username: username,
 						id: uResult.insertId,
+						wx_id: wx_id,
+						avatar: null,
 						token: token
 					}
 				})
@@ -127,9 +161,10 @@ router.post('/login', function (req, res, next) {
 			code: 2,
 			reason: '用户名 密码 不得为空'
 		})
+		return;
 	}
 	// 先查这个用户存在与否
-	db.query('select username from t_user as u where u.username = ?', [username], function (err, result, fields) {
+	db.query('select * from t_user as u where u.username = ? and u.password = ?', [username, password], function (err, result, fields) {
 		if (err) {
 			res.send({
 				status: 'failed',
@@ -140,7 +175,7 @@ router.post('/login', function (req, res, next) {
 		if (result && result.length) {
 			let tokenData = {
 				username,
-				expiresIn: (new Date()).getTime() + 2 * 24 * 60 * 60 * 1000
+				expiresIn: genTime()
 			}
 			let token =  jwt.encode(tokenData, secret);
 			res.send({
@@ -149,6 +184,8 @@ router.post('/login', function (req, res, next) {
 				data: {
 					username: result[0].username,
 					id:  result[0].id,
+					wx_id: result[0].wx_id,
+					avatar: result[0].avatar,
 					token: token
 				}
 			})
@@ -156,7 +193,7 @@ router.post('/login', function (req, res, next) {
 			res.send({
 				status: 'failed',
 				code: 4,
-				reason: `用户名 ${username} 不存在`
+				reason: `用户 ${username} 不存在`
 			})
 		}
 	});
