@@ -19,12 +19,16 @@
 -- Table structure for table `t_user`
 --
 
+-- use wechatdemo;
+
 DROP TABLE IF EXISTS `t_user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t_user` (
   `username` varchar(20) NOT NULL,
   `password` varchar(20) NOT NULL,
+  `avatar` LONGTEXT,
+  `wx_id` varchar(20) NOT null,
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
@@ -36,7 +40,7 @@ CREATE TABLE `t_user` (
 
 LOCK TABLES `t_user` WRITE;
 /*!40000 ALTER TABLE `t_user` DISABLE KEYS */;
-INSERT INTO `t_user` VALUES ('wanyicheng','17775728499',1),('yupengtao','17752875755',2);
+INSERT INTO `t_user` VALUES ('wanyicheng','17775728499',null, 'wanyicheng666', 1),('yupengtao','17752875755',null, 'yupengtao666', 2);
 /*!40000 ALTER TABLE `t_user` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
